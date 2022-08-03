@@ -18,8 +18,8 @@ const verifyToken = async (req, res, next) => {
         console.log('token ** ', decoded);
         
         //Get user from the token
-        req.userId= decoded.userId
-        req.user = await User.findById(decoded.userId).select('-password')
+        req._id= decoded._id
+        req.user = await User.findById(decoded._id).select('-password')
         next()
     } catch (error) {
         // console.log(error)

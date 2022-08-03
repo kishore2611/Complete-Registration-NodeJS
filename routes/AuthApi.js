@@ -19,7 +19,7 @@ router.post('/forgotPassword', forgotPassword)
 router.post('/verifyCode', verifyCode)
 router.post('/resetPassword', resetPassword)
 router.post('/updatePassword', verifyToken, updatePassword)
-router.get('/logOut', verifyToken, logOut)
+router.post('/logOut', verifyToken, logOut)
 router.post('/socialLogin', socialLogin)
 
 

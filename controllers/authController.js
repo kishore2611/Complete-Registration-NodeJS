@@ -1,7 +1,7 @@
 const User = require('../models/User')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken');
-const {sendEmail} = require('../config/mailer')
+const { sendEmail } = require('../config/mailer')
 
 //Register User 
 const register = async (req, res) => {
@@ -29,7 +29,7 @@ const register = async (req, res) => {
             message: 'Password is required.'
         });
     }
-    
+
     else {
         User.find({ email: req.body.email })
             .exec()
@@ -49,16 +49,19 @@ const register = async (req, res) => {
                             });
                         }
                         else {
-                            
+
 
                             const verificationCode = Math.floor(100000 + Math.random() * 900000);
 
                             const user = new User;
+                            user.firstName = req.body.firstName;
+                            user.lastName = req.body.lastName;
                             user.email = req.body.email;
                             user.role = req.body.role;
                             user.password = hash;
-                          
-                            user.verification_code = verificationCode;
+                            user.address = req.body.address;
+
+                            user.verificationCode = verificationCode;
 
                             const token = jwt.sign(
                                 {
@@ -69,9 +72,9 @@ const register = async (req, res) => {
                                 {
                                     expiresIn: '20hr'
                                 }
-                                );
-                              User.findOneAndUpdate({ user_authentication: token})
-                              .exec()
+                            );
+                            User.findOneAndUpdate({ user_authentication: token })
+                                .exec()
                             //  console.log(user[0].user_authentication);
                             user.user_authentication = token
                             // user.save()
@@ -79,16 +82,14 @@ const register = async (req, res) => {
 
                                 .then(result => {
                                     sendEmail(user.email, verificationCode, "Email verification");
-                                    
+
 
                                     return res.status(200).send({
                                         status: 1,
                                         message: 'User verification code successfully sent to email.',
                                         data: {
-                                            verification_code: user.verification_code,
+                                            verificationCode: user.verificationCode,
                                             token: token,
-                                            user: user
-                        
                                         }
                                     });
                                 })
@@ -113,122 +114,124 @@ const register = async (req, res) => {
 
 //verify User
 const verifyUser = async (req, res) => {
-    if(!req.body.user_id){
+    if (!req.body.user_id) {
         res.status(400).send({
-            status: 0, 
-            message: 'User id field is required' 
+            status: 0,
+            message: 'User id field is required'
         });
     }
-    else if(!req.body.verification_code){
+    else if (!req.body.verificationCode) {
         res.status(400).send({
-            status: 0, 
-            message: 'Verification code field is required' 
+            status: 0,
+            message: 'Verification code field is required'
         });
     }
-    else{
+    else {
         User.find({ _id: req.body.user_id })
-        .exec()
-        .then(result => {
-            if(!req.body.verification_code){
-                res.status(400).send({
-                    status: 0, 
-                    message: 'Verification code is required.' 
-                });
-            }
+            .exec()
+            .then(result => {
+                if (!req.body.verificationCode) {
+                    res.status(400).send({
+                        status: 0,
+                        message: 'Verification code is required.'
+                    });
+                }
 
-            if(req.body.verification_code == result[0].verification_code){
+                if (req.body.verificationCode == result[0].verificationCode) {
 
-                User.findByIdAndUpdate(req.body.user_id, { verified: 1, verification_code: null }, (err, user) => {
-                    if(err){
-                        res.status(400).send({
-                            status: 0, 
-                            message: 'Something went wrong.' 
-                        });
-                    }
-                    if(user){
-                        const token = jwt.sign(
-                            {
-                                email: user.email,
-                                userId: user._id
-                            },
-                            process.env.JWT_KEY,
-                            {
-                                expiresIn: '20hr'
-                            }
+                    User.findByIdAndUpdate(req.body.user_id, { verified: 1, verificationCode: null }, (err, user) => {
+                        if (err) {
+                            res.status(400).send({
+                                status: 0,
+                                message: 'Something went wrong.'
+                            });
+                        }
+                        if (user) {
+                            const token = jwt.sign(
+                                {
+                                    email: user.email,
+                                    userId: user._id
+                                },
+                                process.env.JWT_KEY,
+                                {
+                                    expiresIn: '20hr'
+                                }
                             );
-                          User.findOneAndUpdate({ user_authentication: token})
-                          .exec()
-                        //  console.log(user[0].user_authentication);
-                        user.user_authentication = token
-                        user.save()
-                        return res.status(200).send({
-                            status: 1,
-                            message: 'Otp matched successfully.',
-                            token: token,
-                            data: {
-                                user: user
-                            }
-                        });
-                        // res.status(200).send({
-                        //     status: 1, 
-                        //     message: 'Otp matched successfully.' 
-                        // });
-                    }
+                            User.findOneAndUpdate({ user_authentication: token })
+                                .exec()
+                            //  console.log(user[0].user_authentication);
+                            user.user_authentication = token
+                            user.save()
+                            return res.status(200).send({
+                                status: 1,
+                                message: 'Otp matched successfully.',
+
+                                data: {
+                                    token: user.user_authentication,
+                                    _id: user._id
+                                }
+                            });
+                            // res.status(200).send({
+                            //     status: 1, 
+                            //     message: 'Otp matched successfully.' 
+                            // });
+                        }
+                    });
+                }
+                else {
+                    res.status(200).send({
+                        status: 0,
+                        message: 'Verification code did not matched.'
+                    });
+                }
+            })
+            .catch(err => {
+                res.status(400).send({
+                    status: 0,
+                    message: 'User not found'
                 });
-            }
-            else{
-                res.status(200).send({
-                    status: 0, 
-                    message: 'Verification code did not matched.' 
-                });
-            }
-        })
-        .catch(err => {
-            res.status(400).send({
-                status: 0, 
-                message: 'User not found' 
             });
-        });
     }
 }
 
 
 /** Resend code */
 const resendCode = async (req, res) => {
-    if(!req.body.user_id){
+    if (!req.body.user_id) {
         res.status(400).send({
-            status: 0, 
-            message: 'User id failed is required.' 
+            status: 0,
+            message: 'User id failed is required.'
         });
     }
-    else{
+    else {
         User.find({ _id: req.body.user_id })
-        .exec()
-        .then(result => {
-            const verificationCode = Math.floor(100000 + Math.random() * 900000);
-    
-            User.findByIdAndUpdate(req.body.user_id, { verified: 0, verification_code: verificationCode }, (err, _result) => {
-                if(err){
-                    res.status(400).send({
-                        status: 0, 
-                        message: 'Something went wrong.' 
-                    });
-                }
-                if(_result){
-                    sendEmail(result[0].email, verificationCode, "Verification Code Resend");
-                    res.status(200).send({
-                        status: 1, 
-                        message: 'Verification code resend successfully.' 
-                    });
-                }
+            .exec()
+            .then(result => {
+                const verificationCode = Math.floor(100000 + Math.random() * 900000);
+
+                User.findByIdAndUpdate(req.body.user_id, { verified: 0, verificationCode: verificationCode }, (err, _result) => {
+                    if (err) {
+                        res.status(400).send({
+                            status: 0,
+                            message: 'Something went wrong.'
+                        });
+                    }
+                    if (_result) {
+                        sendEmail(result[0].email, verificationCode, "Verification Code Resend");
+                        res.status(200).send({
+                            status: 1,
+                            message: 'Verification code resend successfully.',
+                            verificationCode: verificationCode
+                        });
+                    }
+                });
+            })
+            .catch(err => {
+                res.status(400).send({
+                    status: 0,
+                    message: 'User not found'
+                });
             });
-        })
-        .catch(err => {
-            res.status(400).send({
-                status: 0, 
-                message: 'User not found' 
-            });
-        });
     }
 }
 
@@ -266,7 +269,7 @@ const login = async (req, res) => {
                         }
                         if (result) {
 
-                            if (user[0].is_verified == 0) {
+                            if (user[0].verified == 0) {
                                 return res.status(400).send({
                                     status: 0,
                                     message: 'Please verify your account.'
@@ -283,12 +286,12 @@ const login = async (req, res) => {
                                     {
                                         expiresIn: '20hr'
                                     }
-                                    );
-                                  User.findOneAndUpdate({ user_authentication: token})
-                                  .exec()
+                                );
+                                User.findOneAndUpdate({ user_authentication: token })
+                                    .exec()
                                 //  console.log(user[0].user_authentication);
-                                    user[0].user_authentication = token
-                                    user[0].save()
+                                user[0].user_authentication = token
+                                user[0].save()
                                 return res.status(200).send({
                                     status: 1,
                                     message: 'User logged in successfully!',
@@ -336,7 +339,7 @@ const forgotPassword = async (req, res) => {
                     else {
                         const verificationCode = Math.floor(100000 + Math.random() * 900000);
 
-                        User.findByIdAndUpdate(user._id, { verification_code: verificationCode }, (err, _result) => {
+                        User.findByIdAndUpdate(user._id, { verificationCode: verificationCode }, (err, _result) => {
                             if (err) {
                                 res.status(400).send({
                                     status: 0,
@@ -350,7 +353,7 @@ const forgotPassword = async (req, res) => {
                                     message: 'Code successfully send to email.',
                                     data: {
                                         user_id: user._id,
-                                        verification_code: verificationCode
+                                        verificationCode: verificationCode
                                     }
                                 });
                             }
@@ -368,7 +371,8 @@ const forgotPassword = async (req, res) => {
     catch (err) {
         res.status(404).send({
             status: 0,
-            message: 'error: ' + err.message})
+            message: 'error: ' + err.message
+        })
     }
 }
 
@@ -381,7 +385,7 @@ const verifyCode = async (req, res) => {
                 message: 'User id field is required'
             });
         }
-        else if (!req.body.verification_code) {
+        else if (!req.body.verificationCode) {
             res.status(400).send({
                 status: 0,
                 message: 'Verification code field is required'
@@ -391,16 +395,16 @@ const verifyCode = async (req, res) => {
             User.findOne({ _id: req.body.user_id })
                 .exec()
                 .then(result => {
-                    if (!req.body.verification_code) {
+                    if (!req.body.verificationCode) {
                         res.status(400).send({
                             status: 0,
                             message: 'Verification code is required.'
                         });
                     }
 
-                    if (req.body.verification_code == result.verification_code) {
+                    if (req.body.verificationCode == result.verificationCode) {
 
-                        User.findByIdAndUpdate(req.body.user_id, { verified: 1, verification_code: null }, (err, _result) => {
+                        User.findByIdAndUpdate(req.body.user_id, { verified: 1, verificationCode: null }, (err, _result) => {
                             if (err) {
                                 res.status(400).send({
                                     status: 0,
@@ -433,7 +437,7 @@ const verifyCode = async (req, res) => {
     catch (err) {
         res.status(404).send({
             status: 0,
-            message:'error: ' + err.message
+            message: 'error: ' + err.message
         })
     }
 }
@@ -526,12 +530,12 @@ const updatePassword = async (req, res) => {
             }
             else {
                 const hashedpassword = await bcrypt.hash(req.body.new_password, 10)
-                const newUser = await User.findByIdAndUpdate({_id: req.user._id}, {password: hashedpassword})
+                const newUser = await User.findByIdAndUpdate({ _id: req.user._id }, { password: hashedpassword })
                 await newUser.save()
 
                 res.status(200).send({
                     status: 1,
-                    message:  newUser.email + " has been updated successfully"
+                    message: newUser.email + " has been updated successfully"
                 })
             }
         }
@@ -558,19 +562,19 @@ const logOut = async (req, res) => {
         // }
 
         // else {
-            const updateUser = await User.findOneAndUpdate({ _id: req.user._id }, {
-                user_authentication: null,
-                user_device_type: null,
-                user_device_token: null
-            });
-            res.status(200).send({ 
-                status: 1, 
-                message: 'User logout Successfully.',
-                updateUser
-            });
-            // console.log(updateUser);
+        const updateUser = await User.findOneAndUpdate({ _id: req.user._id }, {
+            user_authentication: null,
+            user_device_type: null,
+            user_device_token: null
+        });
+        res.status(200).send({
+            status: 1,
+            message: 'User logout Successfully.',
+            updateUser
+        });
+        // console.log(updateUser);
         // }
-        
+
         // res.headers('tolen', 'none', {
         // httpOnly: true
         // })
@@ -632,20 +636,43 @@ const socialLogin = async (req, res) => {
                 newRecord.user_social_token = req.body.user_social_token,///
                     newRecord.user_social_type = req.body.user_social_type,
                     newRecord.user_device_type = req.body.user_device_type,
-                    newRecord.user_device_token = req.body.user_device_token
+                    newRecord.user_device_token = req.body.user_device_token,
                 // newRecord.user_name = req.body.user_name,////
-                    newRecord.email = req.body.email,
+                newRecord.email = req.body.email,
                     //newRecord.user_type = req.body.user_type,
                     newRecord.verified = 1
-                await newRecord.generateAuthToken();
+                // await newRecord.generateAuthToken();
+                const token = await jwt.sign(
+                    {
+                        email: newRecord.email,
+                        _id: newRecord._id
+                    },
+                    process.env.JWT_KEY,
+                    {
+                        expiresIn: '20hr'
+                    }
+                );
+                newRecord.user_authentication = token
                 const saveLogin = await newRecord.save();
-                return res.status(200).send({ status: 1, message: 'Login Successfully', data: saveLogin });
+                return res.status(200).send({ status: 1, message: 'Login Successfully', saveLogin: saveLogin, token: token });
             } else {
-                const token = await checkUser.generateAuthToken();
+                // const token = await checkUser.generateAuthToken();
+                const user = this
+                const token = jwt.sign(
+                    {
+                        email: user.email,
+                        _id: user._id
+                    },
+                    process.env.JWT_KEY,
+                    {
+                        expiresIn: '20hr'
+                    }
+                );
+                // User.findOneAndUpdate({ user_authentication: token })
                 const upatedRecord = await User.findOneAndUpdate({ _id: checkUser._id },
-                    { user_device_type: req.body.user_device_type, user_device_token: req.body.user_device_token, verified: 1, user_authentication: token  }
+                    { user_device_type: req.body.user_device_type, user_device_token: req.body.user_device_token, verified: 1, user_authentication: token }
                     , { new: true });
-                return res.status(200).send({ status: 1, message: 'Login Successfully', token: token,      data: upatedRecord });
+                return res.status(200).send({ status: 1, message: 'Login Successfully', token: token, data: upatedRecord });
             }
         }
         // console.log(upatedRecord)

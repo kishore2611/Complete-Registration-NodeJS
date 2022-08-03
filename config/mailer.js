@@ -28,7 +28,7 @@ const sendEmail = (email, verificationCode, subject) => {
     subject: subject,
     html: `<p>Your verification code is ${verificationCode} </p>`,
   };
-  transporter.sendMail(mailOptions, function (err, info) {
+  transport.sendMail(mailOptions, function (err, info) {
     if (err) console.log(err);
     else console.log(info);
   });

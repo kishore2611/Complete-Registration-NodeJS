@@ -1,7 +1,7 @@
 const mongoose = require("mongoose")
 const Schema = mongoose.Schema;
 
-const jwt = require('jsonwebtoken')
+// const jwt = require('jsonwebtoken')
 
 // const validator = require("validator")
 
@@ -28,6 +28,7 @@ let userSchema = new Schema({
         type: String,
         // required: false,
         unique: true,
+        default: null,
         match: [/[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?/, "Please enter a valid email address"],
         // validate: [validator.isEmail,"Please enter a valid email address"],
     },
