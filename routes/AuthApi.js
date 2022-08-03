@@ -11,7 +11,7 @@ const { register, login, verifyUser, logOut, resendCode, forgotPassword, verifyC
 
 
 //Authentication
-router.post('/register', register)
+router.post('/register', upload.single('profilePicture'), register)
 router.post('/verifyUser', verifyUser)
 router.post('/resendCode', resendCode)
 router.post('/login', login)

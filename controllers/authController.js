@@ -49,6 +49,9 @@ const register = async (req, res) => {
                             });
                         }
                         else {
+                            if (req.file) {
+                                profilePicture = req.file.path
+                            }
 
 
                             const verificationCode = Math.floor(100000 + Math.random() * 900000);
@@ -60,6 +63,7 @@ const register = async (req, res) => {
                             user.role = req.body.role;
                             user.password = hash;
                             user.address = req.body.address;
+                            user.profilePicture =  (req.file ? req.file.path : req.body.profilePicture)
 
                             user.verificationCode = verificationCode;
 
@@ -90,6 +94,7 @@ const register = async (req, res) => {
                                         data: {
                                             verificationCode: user.verificationCode,
                                             token: token,
+                                            result: result
                                         }
                                     });
                                 })
